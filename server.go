@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net"
 	"path"
+	"strconv"
 	"time"
 
 	"flag"
@@ -33,6 +34,7 @@ type DevConfig struct {
 	DevName string
 	// must be "rwm" or it's subsets
 	Permissions string
+	Count       int
 }
 
 type HostDevicePluginConfig struct {
@@ -50,6 +52,7 @@ type HostDevicePlugin struct {
 	// Resource name to register with kubelet, for example: hostdev/dev_mem
 	ResourceName string
 	// DevicePluginPath ("/var/lib/kubelet/device-plugins/") + dev_mem.sock
+
 	UnixSockPath string
 	UnixSock     net.Listener
 	GrpcServer   *grpc.Server
@@ -110,16 +113,16 @@ func (mgr *HostDevicePluginManager) RegisterToKubelet() error {
 }
 
 var flagDevList = flag.String("devs", "",
-	"The list of devices seperated by comma. For example: /dev/mem:rwm,/dev/ecryptfs:r")
+	"The list of devices seperated by comma. For example: /dev/mem:rwm:1,/dev/ecryptfs:r:1")
 
 func ParseDevConfig(dev string) (*DevConfig, error) {
 	if dev == "" {
-		return nil, fmt.Errorf("Must have arg --devs , for example, --devs /dev/mem:rwm")
+		return nil, fmt.Errorf("Must have arg --devs , for example, --devs /dev/mem:rwm:1")
 	}
 	devCfg := DevConfig{}
 	s := strings.Split(dev, ":")
-	if len(s) != 2 {
-		return nil, fmt.Errorf("ParseDevConfig failed for: %s. Must have 1 [:], for example, /dev/mem:rwm", dev)
+	if len(s) != 3 {
+		return nil, fmt.Errorf("ParseDevConfig failed for: %s. Must have 2 [:], for example, /dev/mem:rwm:1", dev)
 	}
 	devCfg.DevName = s[0]
 	devCfg.Permissions = s[1]
@@ -152,6 +155,13 @@ func ParseDevConfig(dev string) (*DevConfig, error) {
 				dev, devCfg.Permissions)
 		}
 	}
+
+	n, err := strconv.Atoi(s[2])
+	if err != nil {
+		return nil, fmt.Errorf("ParseDevConfig failed for: %s. parsing int %s failed: %v",
+			dev, s[2], err)
+	}
+	devCfg.Count = n
 
 	return &devCfg, nil
 }
@@ -202,8 +212,9 @@ func NewHostDevicePlugin(devCfg *DevConfig) (*HostDevicePlugin, error) {
 		return nil, err
 	}
 
-	devs := []*pluginapi.Device{
-		{ID: devCfg.DevName, Health: pluginapi.Healthy},
+	devs := make([]*pluginapi.Device, devCfg.Count)
+	for i := 0; i < devCfg.Count; i++ {
+		devs[i] = &pluginapi.Device{ID: devCfg.DevName, Health: pluginapi.Healthy}
 	}
 
 	return &HostDevicePlugin{
