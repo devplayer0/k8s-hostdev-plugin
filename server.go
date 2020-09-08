@@ -214,7 +214,7 @@ func NewHostDevicePlugin(devCfg *DevConfig) (*HostDevicePlugin, error) {
 
 	devs := make([]*pluginapi.Device, devCfg.Count)
 	for i := 0; i < devCfg.Count; i++ {
-		devs[i] = &pluginapi.Device{ID: devCfg.DevName, Health: pluginapi.Healthy}
+		devs[i] = &pluginapi.Device{ID: devCfg.DevName + strconv.Itoa(i), Health: pluginapi.Healthy}
 	}
 
 	return &HostDevicePlugin{
