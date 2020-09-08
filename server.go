@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net"
 	"path"
 	"time"
@@ -124,7 +125,7 @@ func ParseDevConfig(dev string) (*DevConfig, error) {
 	devCfg.Permissions = s[1]
 
 	fileInfo, err := os.Stat(devCfg.DevName)
-  	if err != nil {
+	if err != nil {
 		return nil, fmt.Errorf("ParseDevConfig failed for: %s. stat of %s failed: %v",
 			dev, devCfg.DevName, err)
 	}
@@ -178,7 +179,7 @@ func LoadConfigImpl(arguments []string) (*HostDevicePluginConfig, error) {
 				cfg.DevList = append(cfg.DevList, devCfg)
 				return &cfg, nil
 				// break
-			}				
+			}
 		}
 	}
 }
@@ -202,7 +203,7 @@ func NewHostDevicePlugin(devCfg *DevConfig) (*HostDevicePlugin, error) {
 	}
 
 	devs := []*pluginapi.Device{
-		&pluginapi.Device{ID: devCfg.DevName, Health: pluginapi.Healthy},
+		{ID: devCfg.DevName, Health: pluginapi.Healthy},
 	}
 
 	return &HostDevicePlugin{
@@ -313,7 +314,6 @@ func (plugin *HostDevicePlugin) ListAndWatch(e *pluginapi.Empty, s pluginapi.Dev
 			s.Send(&pluginapi.ListAndWatchResponse{Devices: plugin.Dev})
 		}
 	}
-	return nil
 }
 
 // Allocate which return list of devices.
@@ -347,9 +347,16 @@ func (plugin *HostDevicePlugin) Allocate(ctx context.Context, r *pluginapi.Alloc
 }
 
 func (plugin *HostDevicePlugin) GetDevicePluginOptions(context.Context, *pluginapi.Empty) (*pluginapi.DevicePluginOptions, error) {
-	return &pluginapi.DevicePluginOptions{PreStartRequired: false}, nil
+	return &pluginapi.DevicePluginOptions{
+		PreStartRequired:                false,
+		GetPreferredAllocationAvailable: false,
+	}, nil
 }
 
 func (plugin *HostDevicePlugin) PreStartContainer(context.Context, *pluginapi.PreStartContainerRequest) (*pluginapi.PreStartContainerResponse, error) {
 	return &pluginapi.PreStartContainerResponse{}, nil
+}
+
+func (plugin *HostDevicePlugin) GetPreferredAllocation(ctx context.Context, in *pluginapi.PreferredAllocationRequest) (*pluginapi.PreferredAllocationResponse, error) {
+	return nil, errors.New("Not implemented")
 }

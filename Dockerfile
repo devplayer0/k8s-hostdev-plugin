@@ -1,4 +1,4 @@
-FROM golang:1.14-alpine as build
+FROM golang:1.15-alpine as build
 
 ARG TARGETPLATFORM
 
@@ -15,7 +15,7 @@ RUN export GOOS=$(echo ${TARGETPLATFORM} | cut -d / -f1) && \
     git clone --depth 1 https://github.com/billimek/k8s-hostdev-plugin.git . && \
     go build -o k8s-hostdev-plugin -a -ldflags '-extldflags "-static"' main.go server.go watcher.go
 
-FROM alpine:3.11.3
+FROM alpine:3.12
 
 COPY --from=build /go/src/github.com/billimek/k8s-hostdev-plugin/k8s-hostdev-plugin /k8s-hostdev-plugin
 RUN chmod +x /k8s-hostdev-plugin
