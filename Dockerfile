@@ -1,23 +1,16 @@
-FROM golang:1.15-alpine as build
+FROM golang:1.15-alpine AS builder
+RUN apk --no-cache add gcc musl-dev
 
-ARG TARGETPLATFORM
+WORKDIR /go/src/k8s-hostdev-plugin
+COPY go.* ./
+RUN go mod download
 
-ENV GO111MODULE=on \
-    CGO_ENABLED=0
+COPY *.go ./
+RUN CGO_ENABLED=0 go build -a -ldflags '-extldflags "-static"' -o /go/bin/k8s-hostdev-plugin
 
-RUN apk add --no-cache git
-
-WORKDIR /go/src/github.com/billimek/k8s-hostdev-plugin
-
-RUN export GOOS=$(echo ${TARGETPLATFORM} | cut -d / -f1) && \
-    export GOARCH=$(echo ${TARGETPLATFORM} | cut -d / -f2) && \
-    GOARM=$(echo ${TARGETPLATFORM} | cut -d / -f3); export GOARM=${GOARM:1} && \
-    git clone --depth 1 https://github.com/billimek/k8s-hostdev-plugin.git . && \
-    go build -o k8s-hostdev-plugin -a -ldflags '-extldflags "-static"' main.go server.go watcher.go
 
 FROM alpine:3.12
 
-COPY --from=build /go/src/github.com/billimek/k8s-hostdev-plugin/k8s-hostdev-plugin /k8s-hostdev-plugin
-RUN chmod +x /k8s-hostdev-plugin
+COPY --from=builder /go/bin/k8s-hostdev-plugin /usr/local/bin/
 
-ENTRYPOINT ["/k8s-hostdev-plugin"]
+ENTRYPOINT ["/usr/local/bin/k8s-hostdev-plugin"]
